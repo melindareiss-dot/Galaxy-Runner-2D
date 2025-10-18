@@ -105,9 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if(e.buttons)movePlayer(e.clientX,e.clientY);
     });
     
-    // Event-Listener für StartGame
-    overlay.addEventListener('touchstart',startGame);
-    overlay.addEventListener('click',startGame);
+    // VERBESSERTE EVENT-LISTENER FÜR ZUVERLÄSSIGEN START AUF iOS
+    overlay.addEventListener('touchstart', e => {
+        e.preventDefault(); // Verhindert Standard-Touch-Aktionen (sehr wichtig auf iOS)
+        startGame();
+    });
+    overlay.addEventListener('touchend', startGame); // Zusätzlicher Listener für Zuverlässigkeit
+    overlay.addEventListener('click', startGame);
 
     function startGame(){
       overlay.style.display='none';
