@@ -42,6 +42,9 @@ class Crystal{
 }
 
 function initGame(){
+  // Hinzugefügt, um sicherzustellen, dass width und height gesetzt sind, 
+  // bevor Objekte wie Player erstellt werden.
+  resize(); 
   stars=Array.from({length:80},()=>new Star());
   player=new Player();
   asteroids=[];crystals=[];score=0;
@@ -59,6 +62,7 @@ function update(dt){
   asteroids=asteroids.filter(a=>a.y<height+50);
   crystals=crystals.filter(c=>c.y<height+50);
 
+  // Originale Kollisionslogik (kann bei Bedarf verbessert werden)
   for(let a of asteroids){
     if(Math.abs(a.x-player.x)<a.size && Math.abs(a.y-player.y)<a.size){
       running=false;
