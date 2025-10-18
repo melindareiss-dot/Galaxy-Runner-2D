@@ -1,7 +1,7 @@
 // Der gesamte Code wird erst ausgeführt, wenn das HTML-Dokument vollständig geladen ist.
 document.addEventListener('DOMContentLoaded', () => {
     
-    // ALLE DEINE ORIGINALEN VARIABLEN UND FUNKTIONEN STARTEN HIER
+    // VARIABLEN UND KONSTANTEN
     const canvas=document.getElementById('gameCanvas');
     const ctx=canvas.getContext('2d');
     const overlay=document.getElementById('overlay');
@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize',resize);
     resize();
 
+    // KLASSEN
     class Star{
       constructor(){this.x=Math.random()*width;this.y=Math.random()*height;this.size=Math.random()*2;this.speed=this.size*0.5;}
       update(){this.y+=this.speed;if(this.y>height){this.y=0;this.x=Math.random()*width;}}
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
       draw(){ctx.fillStyle='#00FF7F';ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();}
     }
 
+    // SPIELFUNKTIONEN
     function initGame(){
       resize(); // Erneute Sicherheitsprüfung der Größe
       stars=Array.from({length:80},()=>new Star());
@@ -96,7 +98,14 @@ document.addEventListener('DOMContentLoaded', () => {
       requestAnimationFrame(loop);
     }
 
-    // Steuerung für Touch und Klick
+    function startGame(){
+      overlay.style.display='none';
+      initGame();running=true;
+      lastTime=performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    // STEUERUNG UND EVENTS (Finaler iOS-Fix)
     function movePlayer(x,y){player.x=x;player.y=y;}
     canvas.addEventListener('touchmove',e=>{
       const t=e.touches[0];movePlayer(t.clientX,t.clientY);
@@ -105,19 +114,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if(e.buttons)movePlayer(e.clientX,e.clientY);
     });
     
-    // VERBESSERTE EVENT-LISTENER FÜR ZUVERLÄSSIGEN START AUF iOS
+    // VERBESSERTE START-LISTENER: Konzentriert sich auf touchend/click und verhindert Standard-Aktionen
     overlay.addEventListener('touchstart', e => {
-        e.preventDefault(); // Verhindert Standard-Touch-Aktionen (sehr wichtig auf iOS)
+        e.preventDefault(); 
+    });
+    overlay.addEventListener('touchend', e => {
+        e.preventDefault(); 
         startGame();
     });
-    overlay.addEventListener('touchend', startGame); // Zusätzlicher Listener für Zuverlässigkeit
-    overlay.addEventListener('click', startGame);
-
-    function startGame(){
-      overlay.style.display='none';
-      initGame();running=true;
-      lastTime=performance.now();
-      requestAnimationFrame(loop);
-    }
+    overlay.addEventListener('click', e => {
+        e.preventDefault();
+        startGame();
+    });
 
 }); // Ende von document.addEventListener('DOMContentLoaded')
