@@ -11,7 +11,6 @@ html,body{
   width:100vw;height:100vh;
   background:radial-gradient(circle at center,#000020 20%,#000000 100%);
 }
-/* Behält pointer-events:none bei, damit Score-Anzeige im Spiel ignoriert wird */
 #ui{
   position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
 }
@@ -20,15 +19,13 @@ html,body{
   font-weight:bold;font-size:1.4em;
   text-shadow:0 0 5px #0ff;
 }
-/* NEUE ZEILE: ZWINGT das Overlay, Klicks anzunehmen, 
-   überschreibt das vererbte 'none' von #ui */
 #overlay{
   position:absolute;top:0;left:0;width:100%;height:100%;
   background:rgba(0,0,0,0.8);
   display:flex;flex-direction:column;
   justify-content:center;align-items:center;
   text-align:center;
-  pointer-events: auto; 
+  pointer-events: auto; /* WICHTIG: Erlaubt Klicks/Taps */
 }
 #overlay h1{margin-bottom:0.3em;font-size:2em;}
 #overlay p{font-size:1.2em;opacity:0.8;}
