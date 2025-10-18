@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>Galaxy Runner 2D 🚀</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="ui">
+    <div id="score">SCORE: 0</div>
+    <div id="overlay">
+      <h1>🌌 Galaxy Runner 2D</h1>
+      <p>Tippe, um zu starten!</p>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
