@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreDisplay = document.getElementById('score');
 
     // --- SOUNDS ---
+    const startSound = new Audio('https://audio.jukehost.co.uk/GSmTILOxBTpeKHj5qGyiitJLYqVwh6aE');
     const backgroundMusic = new Audio('https://audio.jukehost.co.uk/pYUtckzLOyf3LUrV506FrdtngI0XiPCo');
     const collectSound = new Audio('https://audio.jukehost.co.uk/dDi8yejBQycWwoFRGKY3ttYSftXPWZ2v');
     const gameOverSound = new Audio('https://audio.jukehost.co.uk/xiLuS0OQwACqtvfJn0hNGmoD9rtpaAOh');
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     backgroundMusic.volume = 0.5;
     collectSound.volume = 0.8;
     gameOverSound.volume = 0.8;
+    startSound.volume = 0.7;
 
     // --- EFFEKT-STATUS-VARIABLEN ---
     let shieldActive = false;
@@ -71,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.y = -20;
             this.size = 15;
             this.speed = 3;
-            this.type = type; // 0=grün, 1=blau, 2=lila
+            this.type = type;
             this.shimmerPhase = Math.random() * Math.PI;
         }
         update() { this.y += this.speed; }
@@ -217,32 +219,38 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = performance.now();
         requestAnimationFrame(loop);
         
-        // Hintergrundmusik starten (oder fortsetzen)
         if (backgroundMusic.paused) {
-             backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
+            backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
         }
     }
 
-    // --- FINALE SOUND-LOGIK ---
-    let soundsUnlocked = false;
-    function unlockSounds() {
-        if (soundsUnlocked) return;
-        soundsUnlocked = true;
-        
-        // Alle Sounds "vorspielen", um die iPhone-Sperre zu umgehen
-        backgroundMusic.play();
-        backgroundMusic.pause();
-        backgroundMusic.currentTime = 0;
-        
-        collectSound.play();
-        collectSound.pause();
-        collectSound.currentTime = 0;
+    // --- FINALE START-LOGIK ---
+    let isFirstInteraction = true;
+    function handleInteraction() {
+        if (isFirstInteraction) {
+            isFirstInteraction = false;
+            
+            // Spielt den Startsound ab. Wenn er endet, startet die Musik.
+            // Der Timeout ist eine Sicherheit, falls das 'ended' Event nicht feuert.
+            startSound.play().catch(() => {
+                // Falls blockiert, startet das Spiel trotzdem sofort mit Musik
+                startGame();
+            });
 
-        gameOverSound.play();
-        gameOverSound.pause();
-        gameOverSound.currentTime = 0;
+            const startTimeout = setTimeout(() => {
+                startSound.pause();
+                startSound.currentTime = 0;
+                if (!running) startGame();
+            }, 5000);
 
-        startGame();
+            startSound.onended = () => {
+                clearTimeout(startTimeout); // Verhindert doppelten Start
+                if (!running) startGame();
+            };
+        } else {
+            // Bei jedem Neustart nach Game Over
+            startGame();
+        }
     }
 
     // --- STEUERUNG UND EVENTS ---
@@ -250,12 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
     canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
     
-    overlay.addEventListener('touchstart', e => e.preventDefault());
-    overlay.addEventListener('click', () => {
-        if (!soundsUnlocked) {
-            unlockSounds();
-        } else {
-            startGame();
-        }
+    overlay.addEventListener('click', handleInteraction);
+    overlay.addEventListener('touchend', (e) => {
+        e.preventDefault(); // Verhindert "Geister-Klicks"
+        handleInteraction();
     });
+    overlay.addEventListener('touchstart', e => e.preventDefault());
 });
