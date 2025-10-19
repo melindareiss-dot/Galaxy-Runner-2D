@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreDisplay = document.getElementById('score');
 
     // --- SOUNDS ---
-    const startSound = new Audio('https://audio.jukehost.co.uk/GSmTILOxBTpeKHj5qGyiitJLYqVwh6aE');
     const backgroundMusic = new Audio('https://audio.jukehost.co.uk/pYUtckzLOyf3LUrV506FrdtngI0XiPCo');
     const collectSound = new Audio('https://audio.jukehost.co.uk/dDi8yejBQycWwoFRGKY3ttYSftXPWZ2v');
     const gameOverSound = new Audio('https://audio.jukehost.co.uk/xiLuS0OQwACqtvfJn0hNGmoD9rtpaAOh');
@@ -17,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     backgroundMusic.volume = 0.5;
     collectSound.volume = 0.8;
     gameOverSound.volume = 0.8;
-    startSound.volume = 0.7;
 
     // --- EFFEKT-STATUS-VARIABLEN ---
     let shieldActive = false;
@@ -86,11 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (this.type === 2) {
                 ctx.fillStyle = '#9370DB';
             }
-
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.fill();
-
             if (this.type === 2) {
                 const radius = this.size * 0.6;
                 ctx.strokeStyle = 'white';
@@ -122,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function spawnObjects() {
         if (Math.random() < 0.035) asteroids.push(new Asteroid());
-        
         const rand = Math.random();
         if (rand < 0.008) {
             crystals.push(new Crystal(1));
@@ -177,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 crystals.splice(i, 1);
                 collectSound.currentTime = 0;
                 collectSound.play();
-
                 if (c.type === 0) {
                     score += 10;
                 } else if (c.type === 1) {
@@ -192,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
         score += dt * 0.05;
         scoreDisplay.textContent = `SCORE: ${Math.floor(score)}`;
     }
@@ -207,61 +200,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loop(timestamp) {
         if (!running) return;
-        const dt = timestamp - lastTime; lastTime = timestamp;
-        spawnObjects(); update(dt); draw();
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+        spawnObjects();
+        update(dt);
+        draw();
         requestAnimationFrame(loop);
     }
 
+    // --- FINALE START-LOGIK ---
     function startGame() {
+        if (running) return; // Verhindert Neustart, wenn das Spiel schon läuft
         overlay.style.display = 'none';
         initGame();
         running = true;
         lastTime = performance.now();
         requestAnimationFrame(loop);
         
-        if (backgroundMusic.paused) {
-            backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
-        }
+        backgroundMusic.play().catch(e => console.error("Hintergrundmusik konnte nicht gestartet werden:", e));
     }
+    
+    // Ein einziger Listener, der die Sounds freischaltet und dann das Spiel startet
+    const startListener = (e) => {
+        e.preventDefault();
 
-    // --- FINALE START-LOGIK ---
-    let isFirstInteraction = true;
-    function handleInteraction() {
-        if (isFirstInteraction) {
-            isFirstInteraction = false;
-            
-            // Spielt den Startsound ab. Wenn er endet, startet die Musik.
-            // Der Timeout ist eine Sicherheit, falls das 'ended' Event nicht feuert.
-            startSound.play().catch(() => {
-                // Falls blockiert, startet das Spiel trotzdem sofort mit Musik
-                startGame();
-            });
+        // Einmaliger "unlock" für alle Sounds
+        backgroundMusic.play();
+        backgroundMusic.pause();
+        collectSound.play();
+        collectSound.pause();
+        gameOverSound.play();
+        gameOverSound.pause();
+        
+        startGame(); // Startet das Spiel
 
-            const startTimeout = setTimeout(() => {
-                startSound.pause();
-                startSound.currentTime = 0;
-                if (!running) startGame();
-            }, 5000);
-
-            startSound.onended = () => {
-                clearTimeout(startTimeout); // Verhindert doppelten Start
-                if (!running) startGame();
-            };
-        } else {
-            // Bei jedem Neustart nach Game Over
-            startGame();
-        }
-    }
+        // Entfernt sich selbst, um nicht erneut ausgelöst zu werden
+        overlay.removeEventListener('click', startListener);
+        overlay.removeEventListener('touchend', startListener);
+        
+        // Fügt einen neuen Listener nur für Neustarts hinzu
+        overlay.addEventListener('click', startGame);
+        overlay.addEventListener('touchend', startGame);
+    };
 
     // --- STEUERUNG UND EVENTS ---
     function movePlayer(x, y) { player.x = x; player.y = y; }
     canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
     canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
-    
-    overlay.addEventListener('click', handleInteraction);
-    overlay.addEventListener('touchend', (e) => {
-        e.preventDefault(); // Verhindert "Geister-Klicks"
-        handleInteraction();
-    });
+
     overlay.addEventListener('touchstart', e => e.preventDefault());
+    overlay.addEventListener('click', startListener);
+    overlay.addEventListener('touchend', startListener);
 });
