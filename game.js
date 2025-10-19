@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreDisplay = document.getElementById('score');
 
     // --- SOUNDS ---
-    const startSound = new Audio('https://audio.jukehost.co.uk/GSmTILOxBTpeKHj5qGyiitJLYqVwh6aE');
     const backgroundMusic = new Audio('https://audio.jukehost.co.uk/pYUtckzLOyf3LUrV506FrdtngI0XiPCo');
     const collectSound = new Audio('https://audio.jukehost.co.uk/dDi8yejBQycWwoFRGKY3ttYSftXPWZ2v');
     const gameOverSound = new Audio('https://audio.jukehost.co.uk/xiLuS0OQwACqtvfJn0hNGmoD9rtpaAOh');
@@ -17,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     backgroundMusic.volume = 0.5;
     collectSound.volume = 0.8;
     gameOverSound.volume = 0.8;
-    startSound.volume = 0.7;
 
     // --- EFFEKT-STATUS-VARIABLEN ---
     let shieldActive = false;
@@ -125,11 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const rand = Math.random();
         if (rand < 0.008) {
-            crystals.push(new Crystal(1)); // Blau
+            crystals.push(new Crystal(1));
         } else if (rand < 0.016) {
-            crystals.push(new Crystal(2)); // Lila
+            crystals.push(new Crystal(2));
         } else if (rand < 0.05) {
-            crystals.push(new Crystal(0)); // Grün
+            crystals.push(new Crystal(0));
         }
     }
 
@@ -165,7 +163,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     overlay.innerHTML = `<h1>Game Over</h1><p>Score: ${Math.floor(score)}</p><p>Tippe zum Neustart</p>`;
                     backgroundMusic.pause();
                     backgroundMusic.currentTime = 0;
-                    gameOverSound.currentTime = 0;
                     gameOverSound.play();
                     return;
                 }
@@ -189,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         slowActive = true;
                         asteroids.forEach(a => { a.speed /= 2; });
                     }
-                    slowTimer = 3000; // Korrigiert auf 3 Sekunden
+                    slowTimer = 3000;
                 }
             }
         }
@@ -220,29 +217,32 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = performance.now();
         requestAnimationFrame(loop);
         
+        // Hintergrundmusik starten (oder fortsetzen)
         if (backgroundMusic.paused) {
-            backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
+             backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
         }
     }
 
     // --- FINALE SOUND-LOGIK ---
-    let isFirstInteraction = true;
-    function handleFirstInteraction() {
-        if (isFirstInteraction) {
-            isFirstInteraction = false;
-            overlay.innerHTML = `<h1>Galaxy Runner 2D</h1><p>Lade...</p>`;
-            
-            startSound.play().catch(e => {}); // Fehler wird ignoriert, falls blockiert
-            
-            setTimeout(() => {
-                startSound.pause();
-                startSound.currentTime = 0;
-                startGame();
-            }, 5000); // 5 Sekunden Wartezeit
+    let soundsUnlocked = false;
+    function unlockSounds() {
+        if (soundsUnlocked) return;
+        soundsUnlocked = true;
+        
+        // Alle Sounds "vorspielen", um die iPhone-Sperre zu umgehen
+        backgroundMusic.play();
+        backgroundMusic.pause();
+        backgroundMusic.currentTime = 0;
+        
+        collectSound.play();
+        collectSound.pause();
+        collectSound.currentTime = 0;
 
-        } else {
-            startGame();
-        }
+        gameOverSound.play();
+        gameOverSound.pause();
+        gameOverSound.currentTime = 0;
+
+        startGame();
     }
 
     // --- STEUERUNG UND EVENTS ---
@@ -250,27 +250,12 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
     canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
     
-    const initialStartListener = (e) => {
-        e.preventDefault();
-        handleFirstInteraction();
-    };
-
-    overlay.addEventListener('touchend', initialStartListener, { once: true });
-    overlay.addEventListener('click', initialStartListener, { once: true });
-    
-    // separater Listener für Neustarts, der erst nach dem ersten Start aktiv wird
-    overlay.addEventListener('touchend', (e) => {
-        if (!isFirstInteraction) {
-            e.preventDefault();
-            startGame();
-        }
-    });
-    overlay.addEventListener('click', (e) => {
-        if (!isFirstInteraction) {
-            e.preventDefault();
-            startGame();
-        }
-    });
-
     overlay.addEventListener('touchstart', e => e.preventDefault());
+    overlay.addEventListener('click', () => {
+        if (!soundsUnlocked) {
+            unlockSounds();
+        } else {
+            startGame();
+        }
+    });
 });
