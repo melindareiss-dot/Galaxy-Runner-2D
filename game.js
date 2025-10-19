@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gameOverSound.volume = 0.8;
     startSound.volume = 0.7;
 
-    // --- NEUE EFFEKT-STATUS-VARIABLEN ---
+    // --- EFFEKT-STATUS-VARIABLEN ---
     let shieldActive = false;
     let shieldTimer = 0;
     let slowActive = false;
@@ -45,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     class Player {
         constructor() { this.x = width / 2; this.y = height * 0.8; this.size = 40; }
         draw() {
-            // Zeichnet den Schutzschild, wenn aktiv
             if (shieldActive) {
                 ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
                 ctx.beginPath();
@@ -75,15 +74,41 @@ document.addEventListener('DOMContentLoaded', () => {
             this.size = 15;
             this.speed = 3;
             this.type = type; // 0=grün, 1=blau, 2=lila
+            this.shimmerPhase = Math.random() * Math.PI; // Zufallsphase für asynchrones Funkeln
         }
         update() { this.y += this.speed; }
         draw() {
-            if (this.type === 0) ctx.fillStyle = '#00FF7F';      // Grün
-            else if (this.type === 1) ctx.fillStyle = '#00BFFF'; // Blau
-            else if (this.type === 2) ctx.fillStyle = '#9370DB'; // Lila
+            // Basisfarbe setzen
+            if (this.type === 0) {
+                ctx.fillStyle = '#00FF7F'; // Grün
+            } else if (this.type === 1) {
+                // Funkeln für blaue Kristalle
+                const alpha = 0.6 + 0.4 * Math.sin(Date.now() / 150 + this.shimmerPhase);
+                ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`; // Blau
+            } else if (this.type === 2) {
+                ctx.fillStyle = '#9370DB'; // Lila
+            }
+
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.fill();
+
+            // Uhr-Symbol für lila Kristalle
+            if (this.type === 2) {
+                const radius = this.size * 0.6;
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                // Zeiger
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x, this.y - radius);
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + radius * 0.7, this.y);
+                ctx.stroke();
+            }
         }
     }
 
@@ -95,17 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
         asteroids = [];
         crystals = [];
         score = 0;
-        shieldActive = false;
-        shieldTimer = 0;
-        slowActive = false;
-        slowTimer = 0;
+        shieldActive = false; shieldTimer = 0;
+        slowActive = false; slowTimer = 0;
     }
 
     function spawnObjects() {
-        if (Math.random() < 0.03) {
-            asteroids.push(new Asteroid());
-        }
-        if (Math.random() < 0.015) { // Erhöhte Spawn-Rate für Kristalle
+        if (Math.random() < 0.03) asteroids.push(new Asteroid());
+        if (Math.random() < 0.015) {
             const type = Math.floor(Math.random() * 3);
             crystals.push(new Crystal(type));
         }
@@ -116,17 +137,15 @@ document.addEventListener('DOMContentLoaded', () => {
         asteroids.forEach(a => a.update());
         crystals.forEach(c => c.update());
 
-        // Effekt-Timer aktualisieren
+        // Effekt-Timer
         if (shieldActive) {
             shieldTimer -= dt;
             if (shieldTimer < 0) shieldActive = false;
         }
-
         if (slowActive) {
             slowTimer -= dt;
             if (slowTimer < 0) {
                 slowActive = false;
-                // Geschwindigkeit der Asteroiden wiederherstellen
                 asteroids.forEach(a => a.speed = a.originalSpeed);
             }
         }
@@ -134,44 +153,44 @@ document.addEventListener('DOMContentLoaded', () => {
         asteroids = asteroids.filter(a => a.y < height + 50);
         crystals = crystals.filter(c => c.y < height + 50);
 
-        // Kollision mit Asteroiden
+        // Kollision: Asteroiden
         for (let i = asteroids.length - 1; i >= 0; i--) {
             let a = asteroids[i];
             if (Math.hypot(a.x - player.x, a.y - player.y) < (a.size + player.size) / 2) {
                 if (shieldActive) {
-                    asteroids.splice(i, 1); // Asteroid zerstören
-                    shieldActive = false;   // Schild ist nach einem Treffer verbraucht
+                    asteroids.splice(i, 1);
+                    shieldActive = false;
                 } else {
                     running = false;
                     overlay.style.display = 'flex';
-                    overlay.innerHTML = `<h1>Game Over!</h1><p>Score: ${Math.floor(score)}</p><p>Tippe, um erneut zu starten!</p>`;
+                    overlay.innerHTML = `<h1>Game Over</h1><p>Score: ${Math.floor(score)}</p><p>Tippe zum Neustart</p>`;
                     backgroundMusic.pause();
                     backgroundMusic.currentTime = 0;
-                    gameOverSound.play();
+                    gameOverSound.play(); // Game-Over-Sound
                     return;
                 }
             }
         }
 
-        // Kollision mit Kristallen
+        // Kollision: Kristalle
         for (let i = crystals.length - 1; i >= 0; i--) {
             let c = crystals[i];
             if (Math.hypot(c.x - player.x, c.y - player.y) < (c.size + player.size) / 2) {
                 crystals.splice(i, 1);
-                
-                if (c.type === 0) { // Grüner Kristall
+                collectSound.currentTime = 0;
+                collectSound.play(); // Sound für ALLE Kristalle
+
+                if (c.type === 0) {
                     score += 10;
-                    collectSound.currentTime = 0;
-                    collectSound.play();
-                } else if (c.type === 1) { // Blauer Kristall
+                } else if (c.type === 1) {
                     shieldActive = true;
-                    shieldTimer = 5000; // 5 Sekunden
-                } else if (c.type === 2) { // Lila Kristall
+                    shieldTimer = 5000;
+                } else if (c.type === 2) {
                     if (!slowActive) {
                         slowActive = true;
-                        asteroids.forEach(a => a.speed /= 2);
+                        asteroids.forEach(a => { a.speed /= 2; });
                     }
-                    slowTimer = 5000; // 5 Sekunden (oder verlängern)
+                    slowTimer = 5000;
                 }
             }
         }
@@ -190,11 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loop(timestamp) {
         if (!running) return;
-        const dt = timestamp - lastTime;
-        lastTime = timestamp;
-        spawnObjects();
-        update(dt);
-        draw();
+        const dt = timestamp - lastTime; lastTime = timestamp;
+        spawnObjects(); update(dt); draw();
         requestAnimationFrame(loop);
     }
 
@@ -205,23 +221,22 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = performance.now();
         requestAnimationFrame(loop);
         
-        // Hintergrundmusik starten
+        // Hintergrundmusik startet mit dem Spiel
         backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
     }
 
-    // --- ANGEPASSTE START-LOGIK FÜR SOUNDS ---
-    function firstStart() {
-        // Spielt den Start-Sound einmalig und entfernt sich selbst
-        startSound.play().catch(e => console.error("Start-Sound fehlgeschlagen:", e));
-        startGame(); // Startet das eigentliche Spiel
-        
-        // Listener entfernen, damit der Startsound nicht nochmal ausgelöst wird
-        overlay.removeEventListener('touchend', firstStart);
-        overlay.removeEventListener('click', firstStart);
-
-        // Normale Listener für Neustart hinzufügen
-        overlay.addEventListener('touchend', e => { e.preventDefault(); startGame(); });
-        overlay.addEventListener('click', e => { e.preventDefault(); startGame(); });
+    // --- FINALE SOUND-LOGIK ---
+    let firstInteraction = true;
+    function handleFirstInteraction() {
+        if (firstInteraction) {
+            firstInteraction = false;
+            // Versucht, den Start-Sound abzuspielen (nur beim allerersten Klick)
+            startSound.play().catch(e => console.log("Startsound vom Browser blockiert, Spiel startet trotzdem."));
+            startGame();
+        } else {
+            // Bei Neustart
+            startGame();
+        }
     }
 
     // --- STEUERUNG UND EVENTS ---
@@ -229,8 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
     canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
     
-    // Initialer Listener für den allerersten Start
     overlay.addEventListener('touchstart', e => e.preventDefault());
-    overlay.addEventListener('touchend', firstStart);
-    overlay.addEventListener('click', firstStart);
+    overlay.addEventListener('touchend', e => { e.preventDefault(); handleFirstInteraction(); });
+    overlay.addEventListener('click', e => { e.preventDefault(); handleFirstInteraction(); });
 });
