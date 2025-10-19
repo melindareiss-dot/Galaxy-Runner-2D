@@ -61,7 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     class Asteroid {
         constructor() { this.x = Math.random() * width; this.y = -20; this.size = 20 + Math.random() * 40; this.speed = 2 + Math.random() * 3; this.originalSpeed = this.speed; }
-        update() { this.y += this.speed; }
+        update() { 
+            this.speed = slowActive ? this.originalSpeed / 2 : this.originalSpeed;
+            this.y += this.speed; 
+        }
         draw() { ctx.fillStyle = '#888'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
     }
 
@@ -76,14 +79,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         update() { this.y += this.speed; }
         draw() {
-            if (this.type === 0) {
-                ctx.fillStyle = '#00FF7F';
-            } else if (this.type === 1) {
+            if (this.type === 0) { ctx.fillStyle = '#00FF7F'; } 
+            else if (this.type === 1) {
                 const alpha = 0.6 + 0.4 * Math.sin(Date.now() / 150 + this.shimmerPhase);
                 ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`;
-            } else if (this.type === 2) {
-                ctx.fillStyle = '#9370DB';
-            }
+            } else if (this.type === 2) { ctx.fillStyle = '#9370DB'; }
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.fill();
@@ -114,21 +114,19 @@ document.addEventListener('DOMContentLoaded', () => {
         score = 0;
         shieldActive = false; shieldTimer = 0;
         slowActive = false; slowTimer = 0;
+        backgroundMusic.currentTime = 0;
     }
 
     function spawnObjects() {
         if (Math.random() < 0.035) asteroids.push(new Asteroid());
         const rand = Math.random();
-        if (rand < 0.008) {
-            crystals.push(new Crystal(1));
-        } else if (rand < 0.016) {
-            crystals.push(new Crystal(2));
-        } else if (rand < 0.05) {
-            crystals.push(new Crystal(0));
-        }
+        if (rand < 0.008) { crystals.push(new Crystal(1)); } 
+        else if (rand < 0.016) { crystals.push(new Crystal(2)); } 
+        else if (rand < 0.05) { crystals.push(new Crystal(0)); }
     }
 
     function update(dt) {
+        if (!running) return;
         stars.forEach(s => s.update());
         asteroids.forEach(a => a.update());
         crystals.forEach(c => c.update());
@@ -139,10 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (slowActive) {
             slowTimer -= dt;
-            if (slowTimer < 0) {
-                slowActive = false;
-                asteroids.forEach(a => a.speed = a.originalSpeed);
-            }
+            if (slowTimer < 0) slowActive = false;
         }
 
         asteroids = asteroids.filter(a => a.y < height + 50);
@@ -159,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     overlay.style.display = 'flex';
                     overlay.innerHTML = `<h1>Game Over</h1><p>Score: ${Math.floor(score)}</p><p>Tippe zum Neustart</p>`;
                     backgroundMusic.pause();
-                    backgroundMusic.currentTime = 0;
                     gameOverSound.play();
                     return;
                 }
@@ -172,16 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 crystals.splice(i, 1);
                 collectSound.currentTime = 0;
                 collectSound.play();
-                if (c.type === 0) {
-                    score += 10;
-                } else if (c.type === 1) {
-                    shieldActive = true;
-                    shieldTimer = 5000;
-                } else if (c.type === 2) {
-                    if (!slowActive) {
-                        slowActive = true;
-                        asteroids.forEach(a => { a.speed /= 2; });
-                    }
+                if (c.type === 0) { score += 10; } 
+                else if (c.type === 1) { shieldActive = true; shieldTimer = 5000; } 
+                else if (c.type === 2) {
+                    if (!slowActive) { slowActive = true; }
                     slowTimer = 3000;
                 }
             }
@@ -200,55 +188,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loop(timestamp) {
         if (!running) return;
-        const dt = timestamp - lastTime;
-        lastTime = timestamp;
-        spawnObjects();
-        update(dt);
-        draw();
+        const dt = timestamp - lastTime; lastTime = timestamp;
+        spawnObjects(); update(dt); draw();
         requestAnimationFrame(loop);
     }
 
-    // --- FINALE START-LOGIK ---
     function startGame() {
-        if (running) return; // Verhindert Neustart, wenn das Spiel schon läuft
+        if (running) return;
         overlay.style.display = 'none';
         initGame();
         running = true;
         lastTime = performance.now();
-        requestAnimationFrame(loop);
-        
-        backgroundMusic.play().catch(e => console.error("Hintergrundmusik konnte nicht gestartet werden:", e));
+        loop(lastTime);
+        backgroundMusic.play();
     }
     
-    // Ein einziger Listener, der die Sounds freischaltet und dann das Spiel startet
+    // EINFACHER, ROBUSTER START-LISTENER
     const startListener = (e) => {
         e.preventDefault();
-
-        // Einmaliger "unlock" für alle Sounds
-        backgroundMusic.play();
-        backgroundMusic.pause();
-        collectSound.play();
-        collectSound.pause();
-        gameOverSound.play();
-        gameOverSound.pause();
         
-        startGame(); // Startet das Spiel
-
-        // Entfernt sich selbst, um nicht erneut ausgelöst zu werden
+        // EINMALIGER "UNLOCK" FÜR iOS
+        const promise = backgroundMusic.play();
+        if (promise !== undefined) {
+            promise.then(() => {
+                backgroundMusic.pause();
+                startGame();
+            }).catch(error => {
+                startGame();
+            });
+        }
+        
+        // Listener entfernen, um ihn nur einmal zu verwenden
         overlay.removeEventListener('click', startListener);
-        overlay.removeEventListener('touchend', startListener);
-        
-        // Fügt einen neuen Listener nur für Neustarts hinzu
-        overlay.addEventListener('click', startGame);
-        overlay.addEventListener('touchend', startGame);
-    };
-
-    // --- STEUERUNG UND EVENTS ---
-    function movePlayer(x, y) { player.x = x; player.y = y; }
-    canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
-    canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
-
-    overlay.addEventListener('touchstart', e => e.preventDefault());
-    overlay.addEventListener('click', startListener);
-    overlay.addEventListener('touchend', startListener);
-});
+        overlay.removeEventListener('touchend', startListener
