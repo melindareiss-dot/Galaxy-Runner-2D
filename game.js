@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() { this.x = width / 2; this.y = height * 0.8; this.size = 40; }
         draw() {
             if (shieldActive) {
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size * 1.2, 0, Math.PI * 2);
                 ctx.fill();
@@ -74,17 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
             this.size = 15;
             this.speed = 3;
             this.type = type; // 0=grün, 1=blau, 2=lila
-            this.shimmerPhase = Math.random() * Math.PI; // Zufallsphase für asynchrones Funkeln
+            this.shimmerPhase = Math.random() * Math.PI;
         }
         update() { this.y += this.speed; }
         draw() {
-            // Basisfarbe setzen
             if (this.type === 0) {
                 ctx.fillStyle = '#00FF7F'; // Grün
             } else if (this.type === 1) {
-                // Funkeln für blaue Kristalle
                 const alpha = 0.6 + 0.4 * Math.sin(Date.now() / 150 + this.shimmerPhase);
-                ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`; // Blau
+                ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`; // Funkel-Blau
             } else if (this.type === 2) {
                 ctx.fillStyle = '#9370DB'; // Lila
             }
@@ -93,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.fill();
 
-            // Uhr-Symbol für lila Kristalle
             if (this.type === 2) {
                 const radius = this.size * 0.6;
                 ctx.strokeStyle = 'white';
@@ -101,12 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
                 ctx.stroke();
-                // Zeiger
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x, this.y - radius);
+                ctx.lineTo(this.x, this.y - radius * 0.8);
                 ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x + radius * 0.7, this.y);
+                ctx.lineTo(this.x + radius * 0.5, this.y);
                 ctx.stroke();
             }
         }
@@ -125,10 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function spawnObjects() {
-        if (Math.random() < 0.03) asteroids.push(new Asteroid());
-        if (Math.random() < 0.015) {
-            const type = Math.floor(Math.random() * 3);
-            crystals.push(new Crystal(type));
+        if (Math.random() < 0.035) asteroids.push(new Asteroid());
+        
+        const rand = Math.random();
+        if (rand < 0.008) { // Seltene Chance für Blau
+            crystals.push(new Crystal(1)); 
+        } else if (rand < 0.016) { // Seltene Chance für Lila
+            crystals.push(new Crystal(2));
+        } else if (rand < 0.05) { // Höhere Chance für Grün
+            crystals.push(new Crystal(0));
         }
     }
 
@@ -137,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
         asteroids.forEach(a => a.update());
         crystals.forEach(c => c.update());
 
-        // Effekt-Timer
         if (shieldActive) {
             shieldTimer -= dt;
             if (shieldTimer < 0) shieldActive = false;
@@ -153,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         asteroids = asteroids.filter(a => a.y < height + 50);
         crystals = crystals.filter(c => c.y < height + 50);
 
-        // Kollision: Asteroiden
         for (let i = asteroids.length - 1; i >= 0; i--) {
             let a = asteroids[i];
             if (Math.hypot(a.x - player.x, a.y - player.y) < (a.size + player.size) / 2) {
@@ -166,19 +165,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     overlay.innerHTML = `<h1>Game Over</h1><p>Score: ${Math.floor(score)}</p><p>Tippe zum Neustart</p>`;
                     backgroundMusic.pause();
                     backgroundMusic.currentTime = 0;
-                    gameOverSound.play(); // Game-Over-Sound
+                    gameOverSound.play();
                     return;
                 }
             }
         }
 
-        // Kollision: Kristalle
         for (let i = crystals.length - 1; i >= 0; i--) {
             let c = crystals[i];
             if (Math.hypot(c.x - player.x, c.y - player.y) < (c.size + player.size) / 2) {
                 crystals.splice(i, 1);
                 collectSound.currentTime = 0;
-                collectSound.play(); // Sound für ALLE Kristalle
+                collectSound.play();
 
                 if (c.type === 0) {
                     score += 10;
@@ -190,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         slowActive = true;
                         asteroids.forEach(a => { a.speed /= 2; });
                     }
-                    slowTimer = 5000;
+                    slowTimer = 3000; // Jetzt 3 Sekunden
                 }
             }
         }
@@ -221,20 +219,30 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = performance.now();
         requestAnimationFrame(loop);
         
-        // Hintergrundmusik startet mit dem Spiel
-        backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
+        if (!backgroundMusic.playing) {
+            backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
+        }
     }
 
     // --- FINALE SOUND-LOGIK ---
-    let firstInteraction = true;
+    let isFirstInteraction = true;
     function handleFirstInteraction() {
-        if (firstInteraction) {
-            firstInteraction = false;
-            // Versucht, den Start-Sound abzuspielen (nur beim allerersten Klick)
-            startSound.play().catch(e => console.log("Startsound vom Browser blockiert, Spiel startet trotzdem."));
-            startGame();
+        if (isFirstInteraction) {
+            isFirstInteraction = false;
+            overlay.innerHTML = `<h1>Galaxy Runner 2D</h1><p>Lade...</p>`; // Lade-Feedback
+            
+            startSound.play().catch(e => console.log("Startsound blockiert."));
+            
+            // Warte, bis der Startsound zu Ende ist (oder max. 5 Sek.), dann starte das Spiel
+            const soundDuration = 5000; // 5 Sekunden
+            setTimeout(() => {
+                startSound.pause();
+                startSound.currentTime = 0;
+                startGame();
+            }, soundDuration);
+
         } else {
-            // Bei Neustart
+            // Dies ist für den Neustart nach Game Over
             startGame();
         }
     }
@@ -244,7 +252,20 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
     canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
     
+    // Dynamischer Listener, der nur einmal den Startsound auslöst
+    const initialStartListener = (e) => {
+        e.preventDefault();
+        handleFirstInteraction();
+        // Entfernt sich selbst nach dem ersten Klick, um nur noch Neustarts zu behandeln
+        overlay.removeEventListener('touchend', initialStartListener);
+        overlay.removeEventListener('click', initialStartListener);
+
+        // Fügt neue Listener für Neustarts hinzu
+        overlay.addEventListener('touchend', (e) => {e.preventDefault(); handleFirstInteraction();});
+        overlay.addEventListener('click', (e) => {e.preventDefault(); handleFirstInteraction();});
+    };
+
     overlay.addEventListener('touchstart', e => e.preventDefault());
-    overlay.addEventListener('touchend', e => { e.preventDefault(); handleFirstInteraction(); });
-    overlay.addEventListener('click', e => { e.preventDefault(); handleFirstInteraction(); });
+    overlay.addEventListener('touchend', initialStartListener);
+    overlay.addEventListener('click', initialStartListener);
 });
