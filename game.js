@@ -9,15 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let width, height, running = false, lastTime = 0, score = 0;
     let player, stars, asteroids, crystals;
 
-    // --- SOUNDS HINZUFÜGEN (FINALE LINKS) ---
+    // --- SOUNDS HINZUFÜGEN ---
     const startSound = new Audio('https://audio.jukehost.co.uk/GSmTILOxBTpeKHj5qGyiitJLYqVwh6aE');
     const backgroundMusic = new Audio('https://audio.jukehost.co.uk/pYUtckzLOyf3LUrV506FrdtngI0XiPCo');
     const collectSound = new Audio('https://audio.jukehost.co.uk/dDi8yejBQycWwoFRGKY3ttYSftXPWZ2v');
     const gameOverSound = new Audio('https://audio.jukehost.co.uk/xiLuS0OQwACqtvfJn0hNGmoD9rtpaAOh');
 
     // --- SOUND-EINSTELLUNGEN ---
-    backgroundMusic.loop = true; // Hintergrundmusik läuft in einer Schleife
-    backgroundMusic.volume = 0.5; // Lautstärke anpassen (0.0 bis 1.0)
+    backgroundMusic.loop = true;
+    backgroundMusic.volume = 0.5;
     collectSound.volume = 0.8;
     gameOverSound.volume = 0.8;
     startSound.volume = 0.8;
@@ -86,6 +86,73 @@ document.addEventListener('DOMContentLoaded', () => {
         asteroids = asteroids.filter(a => a.y < height + 50);
         crystals = crystals.filter(c => c.y < height + 50);
 
-        // Kollision mit Asteroiden
         for (let a of asteroids) {
-            if (Math.abs(a.x - player.x) < a.size && Math.abs(a.y - player.y) <
+            if (Math.abs(a.x - player.x) < a.size && Math.abs(a.y - player.y) < a.size) {
+                running = false;
+                overlay.style.display = 'flex';
+                overlay.innerHTML = `<h1>Game Over!</h1><p>Score: ${Math.floor(score)}</p><p>Tippe, um erneut zu starten!</p>`;
+                
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+                gameOverSound.play();
+                
+                return;
+            }
+        }
+
+        crystals.forEach((c, i) => {
+            if (Math.abs(c.x - player.x) < c.size && Math.abs(c.y - player.y) < c.size) {
+                crystals.splice(i, 1);
+                score += 10;
+                
+                collectSound.currentTime = 0;
+                collectSound.play();
+            }
+        });
+
+        score += dt * 0.05;
+        scoreDisplay.textContent = `SCORE: ${Math.floor(score)}`;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        stars.forEach(s => s.draw());
+        player.draw();
+        asteroids.forEach(a => a.draw());
+        crystals.forEach(c => c.draw());
+    }
+
+    function loop(timestamp) {
+        if (!running) return;
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+
+        spawnObjects();
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    // --- KORRIGIERTE START-FUNKTION ---
+    function startGame() {
+        // 1. Zuerst das Spiel sichtbar starten
+        overlay.style.display = 'none';
+        initGame();
+        running = true;
+        lastTime = performance.now();
+        requestAnimationFrame(loop); // WICHTIG: Startet den Spiel-Loop sofort
+
+        // 2. Danach versuchen, die Sounds abzuspielen
+        startSound.play().catch(e => console.error("Start-Sound fehlgeschlagen:", e));
+        backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
+    }
+
+    // --- STEUERUNG UND EVENTS ---
+    function movePlayer(x, y) { player.x = x; player.y = y; }
+    canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
+    canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
+    
+    overlay.addEventListener('touchstart', e => e.preventDefault());
+    overlay.addEventListener('touchend', e => { e.preventDefault(); startGame(); });
+    overlay.addEventListener('click', e => { e.preventDefault(); startGame(); });
+});
