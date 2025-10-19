@@ -79,12 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         update() { this.y += this.speed; }
         draw() {
             if (this.type === 0) {
-                ctx.fillStyle = '#00FF7F'; // Grün
+                ctx.fillStyle = '#00FF7F';
             } else if (this.type === 1) {
                 const alpha = 0.6 + 0.4 * Math.sin(Date.now() / 150 + this.shimmerPhase);
-                ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`; // Funkel-Blau
+                ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`;
             } else if (this.type === 2) {
-                ctx.fillStyle = '#9370DB'; // Lila
+                ctx.fillStyle = '#9370DB';
             }
 
             ctx.beginPath();
@@ -124,12 +124,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Math.random() < 0.035) asteroids.push(new Asteroid());
         
         const rand = Math.random();
-        if (rand < 0.008) { // Seltene Chance für Blau
-            crystals.push(new Crystal(1)); 
-        } else if (rand < 0.016) { // Seltene Chance für Lila
-            crystals.push(new Crystal(2));
-        } else if (rand < 0.05) { // Höhere Chance für Grün
-            crystals.push(new Crystal(0));
+        if (rand < 0.008) {
+            crystals.push(new Crystal(1)); // Blau
+        } else if (rand < 0.016) {
+            crystals.push(new Crystal(2)); // Lila
+        } else if (rand < 0.05) {
+            crystals.push(new Crystal(0)); // Grün
         }
     }
 
@@ -165,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     overlay.innerHTML = `<h1>Game Over</h1><p>Score: ${Math.floor(score)}</p><p>Tippe zum Neustart</p>`;
                     backgroundMusic.pause();
                     backgroundMusic.currentTime = 0;
+                    gameOverSound.currentTime = 0;
                     gameOverSound.play();
                     return;
                 }
@@ -188,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         slowActive = true;
                         asteroids.forEach(a => { a.speed /= 2; });
                     }
-                    slowTimer = 3000; // Jetzt 3 Sekunden
+                    slowTimer = 3000; // Korrigiert auf 3 Sekunden
                 }
             }
         }
@@ -219,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTime = performance.now();
         requestAnimationFrame(loop);
         
-        if (!backgroundMusic.playing) {
+        if (backgroundMusic.paused) {
             backgroundMusic.play().catch(e => console.error("Hintergrundmusik fehlgeschlagen:", e));
         }
     }
@@ -229,20 +230,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFirstInteraction() {
         if (isFirstInteraction) {
             isFirstInteraction = false;
-            overlay.innerHTML = `<h1>Galaxy Runner 2D</h1><p>Lade...</p>`; // Lade-Feedback
+            overlay.innerHTML = `<h1>Galaxy Runner 2D</h1><p>Lade...</p>`;
             
-            startSound.play().catch(e => console.log("Startsound blockiert."));
+            startSound.play().catch(e => {}); // Fehler wird ignoriert, falls blockiert
             
-            // Warte, bis der Startsound zu Ende ist (oder max. 5 Sek.), dann starte das Spiel
-            const soundDuration = 5000; // 5 Sekunden
             setTimeout(() => {
                 startSound.pause();
                 startSound.currentTime = 0;
                 startGame();
-            }, soundDuration);
+            }, 5000); // 5 Sekunden Wartezeit
 
         } else {
-            // Dies ist für den Neustart nach Game Over
             startGame();
         }
     }
@@ -252,20 +250,27 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('touchmove', e => { const t = e.touches[0]; movePlayer(t.clientX, t.clientY); });
     canvas.addEventListener('mousemove', e => { if (e.buttons) movePlayer(e.clientX, e.clientY); });
     
-    // Dynamischer Listener, der nur einmal den Startsound auslöst
     const initialStartListener = (e) => {
         e.preventDefault();
         handleFirstInteraction();
-        // Entfernt sich selbst nach dem ersten Klick, um nur noch Neustarts zu behandeln
-        overlay.removeEventListener('touchend', initialStartListener);
-        overlay.removeEventListener('click', initialStartListener);
-
-        // Fügt neue Listener für Neustarts hinzu
-        overlay.addEventListener('touchend', (e) => {e.preventDefault(); handleFirstInteraction();});
-        overlay.addEventListener('click', (e) => {e.preventDefault(); handleFirstInteraction();});
     };
 
+    overlay.addEventListener('touchend', initialStartListener, { once: true });
+    overlay.addEventListener('click', initialStartListener, { once: true });
+    
+    // separater Listener für Neustarts, der erst nach dem ersten Start aktiv wird
+    overlay.addEventListener('touchend', (e) => {
+        if (!isFirstInteraction) {
+            e.preventDefault();
+            startGame();
+        }
+    });
+    overlay.addEventListener('click', (e) => {
+        if (!isFirstInteraction) {
+            e.preventDefault();
+            startGame();
+        }
+    });
+
     overlay.addEventListener('touchstart', e => e.preventDefault());
-    overlay.addEventListener('touchend', initialStartListener);
-    overlay.addEventListener('click', initialStartListener);
 });
